@@ -2,7 +2,7 @@ import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { Button, ProgressBar, MD3Colors, Card } from "react-native-paper"
+import { Button, ProgressBar, MD3Colors, Card, Text as PaperText } from "react-native-paper"
 import AWS from 'aws-sdk';
 import { Image, Text, View } from "react-native";
 import { styles } from './Styles';
@@ -248,16 +248,16 @@ export default function App() {
   }
   return (
       <View style={styles.container}         onLayout={(event) => getWindowDimension(event)}>
-        <Card.Title title="Upload or Capture your first image" />
+        <PaperText variant="headlineSmall">Upload First Image</PaperText>
         <Card.Cover source={{ uri: image1 || 'https://www.freeiconspng.com/img/23485' }} />
-        <Card.Actions>
+        <Card.Actions style={{marginBottom: 10}}>
           <Button id={'firstCamera'} icon="camera" onPress={takeFirstPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingFirstPhoto}>Capture</Button>
           <Button id={'firstImage'} icon="image" style={{ marginBottom: 10 }} disabled={uploadingFirstPhoto} onPress={pickFirstImage} mode="contained" loading={uploadingFirstPhoto}>Camera roll</Button>
         </Card.Actions>
 
-        <Card.Title title="Upload or Capture your second image" />
+        <PaperText variant="headlineSmall">Upload Second Image</PaperText>
         <Card.Cover source={{ uri: image2 || 'https://www.freeiconspng.com/img/23485' }} />
-        <Card.Actions>
+        <Card.Actions style={{marginBottom: 10}}>
           <Button icon="camera" onPress={takeSecondPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingSecondPhoto}>Capture</Button>
           <Button icon="image" style={{ marginBottom: 10 }} disabled={uploadingSecondPhoto} onPress={pickSecondImage} mode="contained" loading={uploadingSecondPhoto}>Camera roll</Button>
         </Card.Actions>
@@ -265,9 +265,9 @@ export default function App() {
         <View>
           <Text variant="displayLarge" style={{marginBottom: 10}}> {`Match percentage: ${similarity}`}</Text>
           <Progress.Bar progress={similarity / 100} width={null} height={15} borderRadius={8} />
-          <View style={{justifyContent: 'center', flexDirection: 'row', marginTop: 10}}>
-            <Button style={{marginRight: 5}} icon="close-circle" onPress={clearSelection} mode="outlined"> Clear selection </Button>
-            <Button onPress={compareFaces} mode={'outlined'} icon={"close-circle"} disabled={uploadingFirstPhoto || uploadingSecondPhoto || isCompareDisabled} loading={compareLoading}>Compare!</Button>
+          <View style={{justifyContent: 'flex-end', flexDirection: 'row', marginTop: 10}}>
+            <Button style={{marginRight: 5}} icon="close-circle" onPress={clearSelection} mode="outlined"> Clear </Button>
+            <Button onPress={compareFaces} mode={'outlined'} icon={"compare"} disabled={uploadingFirstPhoto || uploadingSecondPhoto || isCompareDisabled} loading={compareLoading}>Compare!</Button>
           </View>
         </View>
 
