@@ -2,10 +2,11 @@ import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { Button, ProgressBar, MD3Colors } from "react-native-paper"
+import { Button, ProgressBar, MD3Colors, Card } from "react-native-paper"
 import AWS from 'aws-sdk';
 import { Image, Text, View } from "react-native";
 import { styles } from './Styles';
+import * as Progress from 'react-native-progress';
 
 let count = 0;
 const bucketName = 'face-match-007';
@@ -29,7 +30,8 @@ export default function App() {
   const [secondImageKey, setSecondImageKey] = useState(null);
   const [similarity, setSimilarity] = useState(0);
   const [percentage, setPercentage] = useState(0);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingFirstPhoto, setUploadingFirstPhoto] = useState(false);
+  const [uploadingSecondPhoto, setUploadingSecondPhoto] = useState(false);
   const [uploaded, setUploaded] = useState(0);
   const [isCompareDisabled, setIsCompareDisabled] = useState(true);
   const [compareLoading, setCompareLoading] = useState(false);
@@ -50,24 +52,50 @@ export default function App() {
     })();
   }, []);
 
-  const takePhoto = async () => {
-    setUploading(true);
+
+  const takeFirstPhoto = async () => {
+    setUploadingFirstPhoto(true);
     let result = await ImagePicker.launchCameraAsync({
       mediaTypes: "Images",
       aspect: [4, 3],
     });
 
-    await handleImagePicked(result);
+    await handleImagePicked(result, 1);
   };
 
-  const pickImage = async () => {
-    setUploading(true);
+  const takeSecondPhoto = async () => {
+    setUploadingSecondPhoto(true);
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: "Images",
+      aspect: [4, 3],
+    });
+
+    await handleImagePicked(result, 2);
+  };
+
+
+  const pickFirstImage = async (e) => {
+    console.log('event', e.event);
+
+    setUploadingFirstPhoto(true);
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "Images",
       quality: 1,
     });
 
-    await handleImagePicked(result);
+    await handleImagePicked(result, 1);
+  };
+
+
+  const pickSecondImage = async (e) => {
+
+    setUploadingSecondPhoto(true);
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "Images",
+      quality: 1,
+    });
+
+    await handleImagePicked(result, 2);
   };
 
   const clearSelection = () => {
@@ -78,11 +106,12 @@ export default function App() {
     setFirstImageKey(null);
     setSecondImageKey(null);
     setSimilarity(0);
-    setUploading(false);
+    setUploadingFirstPhoto(false);
+    setUploadingSecondPhoto(false);
     setIsCompareDisabled(true);
   };
 
-  let uploadImageToS3 = async (filename, img) => {
+  let uploadImageToS3 = async (filename, img, id) => {
     // Set the parameters for the upload
     const uploadParams = {
       Bucket: bucketName,
@@ -96,15 +125,15 @@ export default function App() {
           .then(() => {
             console.log('wooooow');
             setUploaded(uploaded + 1)
-            setUploading(false);
-            if (count === 1) {
+            id === 1 ? setUploadingFirstPhoto(false) : setUploadingSecondPhoto(false);
+            if (count === 2) {
               setIsCompareDisabled(false);
             }
           })
           .catch(() => {
             clearSelection();
             console.error(`Error upload failed, please try again`);
-            setUploading(false);
+            id === 1 ? setUploadingFirstPhoto(false) : setUploadingSecondPhoto(false);
           });
       console.log(`Uploaded in:`);
     } catch (err) {
@@ -160,33 +189,30 @@ export default function App() {
     }
   };
 
-  let uploadImage = (filename, img) => {
-    uploadImageToS3(filename, img);
+  let uploadImage = (filename, img, id) => {
+    uploadImageToS3(filename, img, id);
   };
 
 
-  let handleImagePicked = async (pickerResult) => {
+  let handleImagePicked = async (pickerResult, id) => {
     try {
       if (pickerResult.cancelled) {
         setUploading(false);
         return;
       } else {
-        setPercentage(0);
         const img = await fetchImageFromUri(pickerResult.uri);
         const filename = `demo-${Date.now()}.jpg`;
         console.log('reaching1');
-        if (count === 0) {
-          console.log('reaching2');
-          count += 1;
+        if (id === 1) {
           setImage1(pickerResult.uri);
           setFirstImageKey(filename);
-        } else if (count === 1) {
-          count = 0;
+          count += 1;
+        } else if (id === 2) {
           setImage2(pickerResult.uri);
           setSecondImageKey(filename);
+          count += 1;
         }
-        uploadImage(filename, img);
-        // this.downloadImage(uploadUrl);
+        uploadImage(filename, img, id);
       }
     } catch (e) {
       alert("Upload failed");
@@ -213,25 +239,35 @@ export default function App() {
     alert("Copied image URL to clipboard");
   };
 
-  return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Face Match!</Text>
-        {percentage !== 0 && <Text style={styles.percentage}>{percentage}%</Text>}
+  function getWindowDimension(event) {
+    device_width = event.nativeEvent.layout.width,
+    device_height = event.nativeEvent.layout.height
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Image source={{uri: image1}} style={{width: 100, height: 100, borderRadius: 100 / 2}}/>
-          <Image source={{uri: image2}} style={{width: 100, height: 100, borderRadius: 100}}/>
-        </View>
+    console.log (device_height);  // Yeah !! good value
+    console.log (device_width);
+  }
+  return (
+      <View style={styles.container}         onLayout={(event) => getWindowDimension(event)}>
+        <Card.Title title="Upload or Capture your first image" />
+        <Card.Cover source={{ uri: image1 || 'https://www.freeiconspng.com/img/23485' }} />
+        <Card.Actions>
+          <Button id={'firstCamera'} icon="camera" onPress={takeFirstPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingFirstPhoto}>Capture</Button>
+          <Button id={'firstImage'} icon="image" style={{ marginBottom: 10 }} disabled={uploadingFirstPhoto} onPress={pickFirstImage} mode="contained" loading={uploadingFirstPhoto}>Camera roll</Button>
+        </Card.Actions>
+
+        <Card.Title title="Upload or Capture your second image" />
+        <Card.Cover source={{ uri: image2 || 'https://www.freeiconspng.com/img/23485' }} />
+        <Card.Actions>
+          <Button icon="camera" onPress={takeSecondPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingSecondPhoto}>Capture</Button>
+          <Button icon="image" style={{ marginBottom: 10 }} disabled={uploadingSecondPhoto} onPress={pickSecondImage} mode="contained" loading={uploadingSecondPhoto}>Camera roll</Button>
+        </Card.Actions>
+
         <View>
           <Text variant="displayLarge" style={{marginBottom: 10}}> {`Match percentage: ${similarity}`}</Text>
-          <ProgressBar progress={similarity / 100} color={MD3Colors.error50} />
-          <Button style={{ marginTop: 10 }} onPress={compareFaces} mode={'outlined'} disabled={uploading || isCompareDisabled} loading={compareLoading}>Compare!</Button>
-        </View>
-        <View>
-          <Button icon="image" style={{ marginBottom: 10 }} disabled={uploading} onPress={pickImage} mode="contained" loading={uploading}> Pick your first image from camera roll </Button>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Button icon="camera" onPress={takePhoto} mode="outlined" style={{marginRight: 5}} disabled={uploading}> Take a photo </Button>
-            <Button icon="close-circle" onPress={clearSelection} mode="outlined"> Clear selection </Button>
+          <Progress.Bar progress={similarity / 100} width={null} height={15} borderRadius={8} />
+          <View style={{justifyContent: 'center', flexDirection: 'row', marginTop: 10}}>
+            <Button style={{marginRight: 5}} icon="close-circle" onPress={clearSelection} mode="outlined"> Clear selection </Button>
+            <Button onPress={compareFaces} mode={'outlined'} icon={"close-circle"} disabled={uploadingFirstPhoto || uploadingSecondPhoto || isCompareDisabled} loading={compareLoading}>Compare!</Button>
           </View>
         </View>
 
