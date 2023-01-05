@@ -4,10 +4,10 @@ import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import { Button, ProgressBar, MD3Colors } from "react-native-paper"
 import AWS from 'aws-sdk';
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { styles } from './Styles';
 
-let count = 1;
+let count = 0;
 const bucketName = 'face-match-007';
 AWS.config.update(
     {
@@ -72,7 +72,7 @@ export default function App() {
 
   const clearSelection = () => {
     console.log('reaching clearselection')
-    count = 1;
+    count = 0;
     setImage1('');
     setImage2('');
     setFirstImageKey(null);
@@ -97,7 +97,7 @@ export default function App() {
             console.log('wooooow');
             setUploaded(uploaded + 1)
             setUploading(false);
-            if (count === 2) {
+            if (count === 1) {
               setIsCompareDisabled(false);
             }
           })
@@ -106,7 +106,7 @@ export default function App() {
             console.error(`Error upload failed, please try again`);
             setUploading(false);
           });
-      console.log(`Uploadeds in:`);
+      console.log(`Uploaded in:`);
     } catch (err) {
       console.log(`Error: ${err}`);
     }
@@ -175,13 +175,13 @@ export default function App() {
         const img = await fetchImageFromUri(pickerResult.uri);
         const filename = `demo-${Date.now()}.jpg`;
         console.log('reaching1');
-        if (count === 1) {
+        if (count === 0) {
           console.log('reaching2');
           count += 1;
           setImage1(pickerResult.uri);
           setFirstImageKey(filename);
-        } else if (count === 2) {
-          count += 1;
+        } else if (count === 1) {
+          count = 0;
           setImage2(pickerResult.uri);
           setSecondImageKey(filename);
         }
@@ -219,8 +219,8 @@ export default function App() {
         {percentage !== 0 && <Text style={styles.percentage}>{percentage}%</Text>}
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Image source={{uri: image1}} style={{width: 100, height: 100}}/>
-          <Image source={{uri: image2}} style={{width: 100, height: 100}}/>
+          <Image source={{uri: image1}} style={{width: 100, height: 100, borderRadius: 100 / 2}}/>
+          <Image source={{uri: image2}} style={{width: 100, height: 100, borderRadius: 100}}/>
         </View>
         <View>
           <Text variant="displayLarge" style={{marginBottom: 10}}> {`Match percentage: ${similarity}`}</Text>
