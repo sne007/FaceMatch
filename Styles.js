@@ -4,11 +4,30 @@ export const styles = StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: "center",
-        marginTop: 10,
-        marginLeft: 10,
-        marginBottom: 10,
-        backgroundColor: "#fff",
+        backgroundColor: "#fcfae1",
+        paddingLeft: 20,
+        paddingRight: 20,
+        PaddingBottom: 20
+    },
+    cardContainer: {
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexDirection: 'row',
         padding: 20,
+        paddingBottom: 5,
+        marginBottom: 10,
+        // backgroundColor: '#eee',
+        // shadowColor: '#171717',
+        // shadowOffset: {width: -2, height: 4},
+        // shadowOpacity: 0.2,
+        // shadowRadius: 3,
+    },
+    roundedImage: {
+        width: 130,
+        height: 130,
+        borderRadius: 75,
+        borderWidth: 3,
+        borderColor: 'black'
     },
     top: {
         flex: 0.3,

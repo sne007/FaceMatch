@@ -2,7 +2,7 @@ import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { Button, ProgressBar, MD3Colors, Card, Text as PaperText } from "react-native-paper"
+import { Button, ProgressBar, MD3Colors, Card, Text as PaperText, IconButton } from "react-native-paper"
 import AWS from 'aws-sdk';
 import { Image, Text, View } from "react-native";
 import { styles } from './Styles';
@@ -123,7 +123,6 @@ export default function App() {
       // Upload the file to S3
       await s3.upload(uploadParams).promise()
           .then(() => {
-            console.log('wooooow');
             setUploaded(uploaded + 1)
             id === 1 ? setUploadingFirstPhoto(false) : setUploadingSecondPhoto(false);
             if (count === 2) {
@@ -184,7 +183,6 @@ export default function App() {
             setCompareLoading(false);
             console.log(err, err.stack);
           });
-      console.log('snehith', data);
     } catch (err) {
     }
   };
@@ -197,12 +195,11 @@ export default function App() {
   let handleImagePicked = async (pickerResult, id) => {
     try {
       if (pickerResult.cancelled) {
-        setUploading(false);
+        id === 1 ? setUploadingFirstPhoto(false) : setUploadingSecondPhoto(false);
         return;
       } else {
         const img = await fetchImageFromUri(pickerResult.uri);
         const filename = `demo-${Date.now()}.jpg`;
-        console.log('reaching1');
         if (id === 1) {
           setImage1(pickerResult.uri);
           setFirstImageKey(filename);
@@ -215,7 +212,7 @@ export default function App() {
         uploadImage(filename, img, id);
       }
     } catch (e) {
-      alert("Upload failed");
+      alert(`Upload snehith failed ${e}`);
     }
   };
 
@@ -247,28 +244,41 @@ export default function App() {
     console.log (device_width);
   }
   return (
-      <View style={styles.container}         onLayout={(event) => getWindowDimension(event)}>
-        <PaperText variant="headlineSmall">Upload First Image</PaperText>
-        <Card.Cover source={{ uri: image1 || 'https://www.freeiconspng.com/img/23485' }} />
-        <Card.Actions style={{marginBottom: 10}}>
-          <Button id={'firstCamera'} icon="camera" onPress={takeFirstPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingFirstPhoto}>Capture</Button>
-          <Button id={'firstImage'} icon="image" style={{ marginBottom: 10 }} disabled={uploadingFirstPhoto} onPress={pickFirstImage} mode="contained" loading={uploadingFirstPhoto}>Camera roll</Button>
-        </Card.Actions>
+      <View style={styles.container} onLayout={(event) => getWindowDimension(event)}>
 
-        <PaperText variant="headlineSmall">Upload Second Image</PaperText>
-        <Card.Cover source={{ uri: image2 || 'https://www.freeiconspng.com/img/23485' }} />
-        <Card.Actions style={{marginBottom: 10}}>
-          <Button icon="camera" onPress={takeSecondPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingSecondPhoto}>Capture</Button>
-          <Button icon="image" style={{ marginBottom: 10 }} disabled={uploadingSecondPhoto} onPress={pickSecondImage} mode="contained" loading={uploadingSecondPhoto}>Camera roll</Button>
-        </Card.Actions>
+        <PaperText variant="displayMedium" style={{marginBottom: 40}}>Hello there!</PaperText>
+        <PaperText variant="bodyLarge" style={{marginBottom: 10}}>Please upload/take a photo to get started:</PaperText>
 
-        <View>
-          <Text variant="displayLarge" style={{marginBottom: 10}}> {`Match percentage: ${similarity}`}</Text>
-          <Progress.Bar progress={similarity / 100} width={null} height={15} borderRadius={8} />
-          <View style={{justifyContent: 'flex-end', flexDirection: 'row', marginTop: 10}}>
+        <View style={styles.cardContainer}>
+          <View>
+            <Image
+                style={styles.roundedImage}
+                source={image1 ? {uri: image1} : require('./man.jpeg')}
+            />
+            <View style={{flexDirection: 'row', justifyContent: 'center'}}>
+              <IconButton id={'firstCamera'} icon="camera" onPress={takeFirstPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingFirstPhoto} />
+              <IconButton id={'firstImage'} icon="image" style={{ marginBottom: 10 }} disabled={uploadingFirstPhoto} onPress={pickFirstImage} mode="contained" loading={uploadingFirstPhoto} />
+            </View>
+          </View>
+          <View style={{justifyContent: 'center'}}>
+            <Image
+                style={styles.roundedImage}
+                source={image2 ? {uri: image2} : require('./woman.jpeg')}
+            />
+            <View style={{flexDirection: 'row', justifyContent: 'center'}}>
+              <IconButton icon="camera" onPress={takeSecondPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingSecondPhoto}/>
+              <IconButton icon="image" style={{ marginBottom: 10 }} disabled={uploadingSecondPhoto} onPress={pickSecondImage} mode="contained" loading={uploadingSecondPhoto}/>
+            </View>
+          </View>
+        </View>
+
+        <View style={{padding: 20}}>
+          <View style={{justifyContent: 'center', flexDirection: 'row'}}>
             <Button style={{marginRight: 5}} icon="close-circle" onPress={clearSelection} mode="outlined"> Clear </Button>
             <Button onPress={compareFaces} mode={'outlined'} icon={"compare"} disabled={uploadingFirstPhoto || uploadingSecondPhoto || isCompareDisabled} loading={compareLoading}>Compare!</Button>
           </View>
+          <Progress.Bar color={'#424141'} progress={similarity / 100} width={null} height={15} borderRadius={8} style={{marginTop: 50}} />
+          <PaperText variant="titleMedium" style={{marginBottom: 5, justifyContent: 'center'}}> {`Match percentage: ${similarity.toFixed(2)}`}</PaperText>
         </View>
 
       </View>
