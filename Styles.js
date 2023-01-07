@@ -4,7 +4,7 @@ export const styles = StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: "center",
-        backgroundColor: "#fcfae1",
+        // backgroundColor: "#fcfae1",
         paddingLeft: 20,
         paddingRight: 20,
         PaddingBottom: 20
@@ -16,11 +16,12 @@ export const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 5,
         marginBottom: 10,
-        // backgroundColor: '#eee',
-        // shadowColor: '#171717',
-        // shadowOffset: {width: -2, height: 4},
-        // shadowOpacity: 0.2,
-        // shadowRadius: 3,
+        borderRadius: 15,
+        backgroundColor: '#6081f7',
+        shadowColor: '#171717',
+        shadowOffset: {width: -2, height: 4},
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
     },
     roundedImage: {
         width: 130,

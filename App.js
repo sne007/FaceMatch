@@ -4,11 +4,16 @@ import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import { Button, ProgressBar, MD3Colors, Card, Text as PaperText, IconButton } from "react-native-paper"
 import AWS from 'aws-sdk';
-import { Image, Text, View } from "react-native";
+import { Image, Text, View, ToastAndroid, ImageBackground, Animated, Easing } from "react-native";
 import { styles } from './Styles';
 import * as Progress from 'react-native-progress';
+import ConfettiCannon from 'react-native-confetti-cannon';
+import { captureScreen } from "react-native-view-shot";
+import * as MediaLibrary from 'expo-media-library';
+import { AppOpenAd, InterstitialAd, RewardedAd, BannerAd, TestIds } from 'react-native-google-mobile-ads';
 
 let count = 0;
+let clickCount = 0;
 const bucketName = 'face-match-007';
 AWS.config.update(
     {
@@ -35,7 +40,9 @@ export default function App() {
   const [uploaded, setUploaded] = useState(0);
   const [isCompareDisabled, setIsCompareDisabled] = useState(true);
   const [compareLoading, setCompareLoading] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
+  const analyzingText = 'Analyzing image(s)';
   useEffect(() => {
     (async () => {
       if (Constants.platform.ios) {
@@ -52,6 +59,24 @@ export default function App() {
     })();
   }, []);
 
+  const showAd = async () => {
+    alert(TestIds);
+    console.log('admob ', TestIds, ConfettiCannon);
+    AdMobRewarded.setAdUnitID("ca-app-pub-3940256099942544/5224354917");
+    // AdMobRewarded.setTestDeviceID("EMULATOR");
+
+    await AdMobRewarded.requestAdAsync();
+    await AdMobRewarded.showAdAsync();
+  }
+// function to show ad
+//   const showAd = () => {
+//
+//     if (clickCount > 0 && clickCount % 5 === 0) {
+//       AdMobRewarded.showAdAsync().then(() => {
+//         adShown = true;
+//       });
+//     }
+//   };
 
   const takeFirstPhoto = async () => {
     setUploadingFirstPhoto(true);
@@ -86,9 +111,7 @@ export default function App() {
     await handleImagePicked(result, 1);
   };
 
-
   const pickSecondImage = async (e) => {
-
     setUploadingSecondPhoto(true);
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "Images",
@@ -99,7 +122,6 @@ export default function App() {
   };
 
   const clearSelection = () => {
-    console.log('reaching clearselection')
     count = 0;
     setImage1('');
     setImage2('');
@@ -108,8 +130,36 @@ export default function App() {
     setSimilarity(0);
     setUploadingFirstPhoto(false);
     setUploadingSecondPhoto(false);
-    setIsCompareDisabled(true);
+    setIsCompareDisabled(true)
+    setCompareLoading(false);
+    setShowConfetti(false);
   };
+
+  const takeScreenshot = async () => {
+    const val =  await MediaLibrary.getPermissionsAsync();
+    if (!val.canAskAgain && !val.granted) {
+      ToastAndroid.show('App doesn\'t have permissions to save!', ToastAndroid.SHORT);
+      return;
+    } else if (val.canAskAgain && !val.granted) {
+      await MediaLibrary.requestPermissionsAsync();
+    }
+
+    captureScreen({
+      format: "jpg",
+      quality: 0.8
+    })
+        .then(
+            uri => {
+              MediaLibrary.createAssetAsync(uri);
+              ToastAndroid.show('Screenshot saved to photos!', ToastAndroid.SHORT);
+            },
+            error => console.error("Oops, snapshot failed", error)
+        )
+        .catch((e) => {
+          ToastAndroid.show('Failed to capture screen!', ToastAndroid.SHORT);
+        })
+  }
+
 
   let uploadImageToS3 = async (filename, img, id) => {
     // Set the parameters for the upload
@@ -134,7 +184,6 @@ export default function App() {
             console.error(`Error upload failed, please try again`);
             id === 1 ? setUploadingFirstPhoto(false) : setUploadingSecondPhoto(false);
           });
-      console.log(`Uploaded in:`);
     } catch (err) {
       console.log(`Error: ${err}`);
     }
@@ -142,9 +191,11 @@ export default function App() {
 
 
   const compareFaces = async () => {
+    showAd();
     setCompareLoading(true);
     if (!firstImageKey || !secondImageKey) {
-      alert('Image not found');
+      setCompareLoading(false);
+      alert('Please upload 2 images to continue');
       return;
     }
 
@@ -170,20 +221,30 @@ export default function App() {
       const data = await rekognition.compareFaces(params).promise()
           .then((value) => {
             setCompareLoading(false);
-            console.log('face matches ', value.FaceMatches);
             if (value.FaceMatches.length > 0) {
-              console.log('snehith1');
-              const similarity = value.FaceMatches[0].Similarity;
-              setSimilarity(similarity);
+              setShowConfetti(true)
+              let res = value.FaceMatches[0].Similarity;
+              if (res >= 1 && res < 15) {
+                setSimilarity(res + 15);
+              } else if (res >= 15 && res < 55) {
+                setSimilarity(res + 10)
+              } else {
+                setSimilarity(res);
+              }
             } else {
-              setSimilarity(0);
+              console.log('inside else', value);
+              setSimilarity(0.01);
             }
           })
-          .catch(() => {
+          .catch((e) => {
             setCompareLoading(false);
-            console.log(err, err.stack);
+            setShowConfetti(false);
+            setSimilarity(0);
+            console.log('error ', e);
           });
     } catch (err) {
+      console.log('error ', e);
+      clearSelection();
     }
   };
 
@@ -194,10 +255,14 @@ export default function App() {
 
   let handleImagePicked = async (pickerResult, id) => {
     try {
-      if (pickerResult.cancelled) {
+      if (pickerResult.canceled) {
         id === 1 ? setUploadingFirstPhoto(false) : setUploadingSecondPhoto(false);
         return;
       } else {
+        // reset similarity and confetti cuz we're either uploading the image for the first time
+        // setSimilarity(0);
+        // setShowConfetti(false);
+
         const img = await fetchImageFromUri(pickerResult.uri);
         const filename = `demo-${Date.now()}.jpg`;
         if (id === 1) {
@@ -243,44 +308,70 @@ export default function App() {
     console.log (device_height);  // Yeah !! good value
     console.log (device_width);
   }
+
+  const animate = (similarity) => {
+    Animated.timing(
+        similarity,
+        {
+          toValue: similarity,
+          duration: 2000,
+          easing: Easing.linear
+        }
+    )
+  }
+
+  const analyzing = uploadingFirstPhoto || uploadingSecondPhoto || compareLoading;
   return (
-      <View style={styles.container} onLayout={(event) => getWindowDimension(event)}>
+      <ImageBackground style={{flex: 1}} source={require('./stylishBackground1.jpg')}>
+        <View style={styles.container} onLayout={(event) => getWindowDimension(event)}>
+          <PaperText variant="displayMedium" style={{marginBottom: 40}}>Welcome! 😄</PaperText>
+          <PaperText variant="bodyLarge" style={{marginBottom: 10}}>Please upload/capture photos to compare faces:</PaperText>
 
-        <PaperText variant="displayMedium" style={{marginBottom: 40}}>Hello there!</PaperText>
-        <PaperText variant="bodyLarge" style={{marginBottom: 10}}>Please upload/take a photo to get started:</PaperText>
-
-        <View style={styles.cardContainer}>
-          <View>
-            <Image
-                style={styles.roundedImage}
-                source={image1 ? {uri: image1} : require('./man.jpeg')}
-            />
-            <View style={{flexDirection: 'row', justifyContent: 'center'}}>
-              <IconButton id={'firstCamera'} icon="camera" onPress={takeFirstPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingFirstPhoto} />
-              <IconButton id={'firstImage'} icon="image" style={{ marginBottom: 10 }} disabled={uploadingFirstPhoto} onPress={pickFirstImage} mode="contained" loading={uploadingFirstPhoto} />
+          <View style={styles.cardContainer}>
+            <View>
+              <Image
+                  style={styles.roundedImage}
+                  source={image1 ? {uri: image1} : require('./man.jpeg')}
+              />
+              <View style={{flexDirection: 'row', justifyContent: 'center'}}>
+                <IconButton id={'firstCamera'} icon="camera" onPress={takeFirstPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingFirstPhoto} />
+                <IconButton id={'firstImage'} icon="image" style={{ marginBottom: 10 }} disabled={uploadingFirstPhoto} onPress={pickFirstImage} mode="contained" loading={uploadingFirstPhoto} />
+              </View>
+            </View>
+            <View style={{justifyContent: 'center'}}>
+              <Image
+                  style={styles.roundedImage}
+                  source={image2 ? {uri: image2} : require('./woman.jpeg')}
+              />
+              <View style={{flexDirection: 'row', justifyContent: 'center'}}>
+                <IconButton icon="camera" onPress={takeSecondPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingSecondPhoto}/>
+                <IconButton icon="image" style={{ marginBottom: 10 }} disabled={uploadingSecondPhoto} onPress={pickSecondImage} mode="contained" loading={uploadingSecondPhoto}/>
+              </View>
             </View>
           </View>
-          <View style={{justifyContent: 'center'}}>
-            <Image
-                style={styles.roundedImage}
-                source={image2 ? {uri: image2} : require('./woman.jpeg')}
-            />
-            <View style={{flexDirection: 'row', justifyContent: 'center'}}>
-              <IconButton icon="camera" onPress={takeSecondPhoto} mode="outlined" style={{marginRight: 5}} disabled={uploadingSecondPhoto}/>
-              <IconButton icon="image" style={{ marginBottom: 10 }} disabled={uploadingSecondPhoto} onPress={pickSecondImage} mode="contained" loading={uploadingSecondPhoto}/>
+
+
+          <View style={{padding: 20}}>
+            <View style={{justifyContent: 'center', flexDirection: 'row'}}>
+              <Button style={{marginRight: 15}} icon="close-circle" onPress={clearSelection} mode="outlined"> Clear </Button>
+              <Button onPress={compareFaces} mode={'contained'} color={'#6081f7'} icon={"compare"} disabled={analyzing || isCompareDisabled} loading={analyzing}>
+                {compareLoading ? 'Analyzing Image(s)' : (analyzing ? 'Scanning Image(s)' : 'Compare!')}
+              </Button>
             </View>
+            <Progress.Bar  animationConfig={{ duration: 2000 }} animationType={'timing'} color={'#6081f7'} progress={similarity / 100} width={null} height={15} borderRadius={8} style={{marginTop: 50}} />
+            <PaperText variant="titleMedium" style={{marginBottom: 5, justifyContent: 'center'}}> {`Match percentage: ${similarity.toFixed(2)}`}</PaperText>
+            <Button style={{marginTop: 25}} onPress={takeScreenshot} mode={'outlined'} icon={"download"}> Take Screenshot </Button>
           </View>
+          {showConfetti ?
+              <ConfettiCannon
+                  count={200}
+                  origin={{x: -10, y: 0}}
+              />
+              : null
+          }
         </View>
+      </ImageBackground>
 
-        <View style={{padding: 20}}>
-          <View style={{justifyContent: 'center', flexDirection: 'row'}}>
-            <Button style={{marginRight: 5}} icon="close-circle" onPress={clearSelection} mode="outlined"> Clear </Button>
-            <Button onPress={compareFaces} mode={'outlined'} icon={"compare"} disabled={uploadingFirstPhoto || uploadingSecondPhoto || isCompareDisabled} loading={compareLoading}>Compare!</Button>
-          </View>
-          <Progress.Bar color={'#424141'} progress={similarity / 100} width={null} height={15} borderRadius={8} style={{marginTop: 50}} />
-          <PaperText variant="titleMedium" style={{marginBottom: 5, justifyContent: 'center'}}> {`Match percentage: ${similarity.toFixed(2)}`}</PaperText>
-        </View>
 
-      </View>
   );
 }
