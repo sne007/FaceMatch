@@ -1,48 +1,47 @@
-import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { Button, ProgressBar, MD3Colors, Card, Text as PaperText, IconButton } from "react-native-paper"
+import { Button, Text as PaperText, IconButton } from "react-native-paper"
 import AWS from 'aws-sdk';
-import { Image, Text, View, ToastAndroid, ImageBackground, Animated, Easing } from "react-native";
+import { Image, View, ToastAndroid, ImageBackground, Animated, Easing, StatusBar } from "react-native";
 import { styles } from './Styles';
 import * as Progress from 'react-native-progress';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { captureScreen } from "react-native-view-shot";
 import * as MediaLibrary from 'expo-media-library';
-import { AppOpenAd, InterstitialAd, RewardedAd, BannerAd, TestIds } from 'react-native-google-mobile-ads';
+import { BannerAd, BannerAdSize, AdEventType, RewardedInterstitialAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
 
 let count = 0;
-let clickCount = 0;
-const bucketName = 'face-match-007';
+let clickCount = 1;
+const bucketName = 'face-compare-007';
 AWS.config.update(
     {
       region: 'us-east-1',
       credentials: {
-        accessKeyId: 'AKIASGSB43S6YBTL42HK',
-        secretAccessKey: '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'
+        accessKeyId: 'AKIAW53M3PFP6BAAVZUO',
+        secretAccessKey: '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'
       }
     });
+
+const rewardedInterstitial = RewardedInterstitialAd.createForAdRequest('ca-app-pub-2736939904467537/6624279795');
 
 export default function App() {
   const s3 = new AWS.S3({apiVersion: '2006-03-01'});
   const rekognition = new AWS.Rekognition({apiVersion: '2016-06-27'});
 
-  const [image, setImage] = useState(null);
   const [image1, setImage1] = useState('');
   const [image2, setImage2] = useState('');
   const [firstImageKey, setFirstImageKey] = useState(null);
   const [secondImageKey, setSecondImageKey] = useState(null);
   const [similarity, setSimilarity] = useState(0);
-  const [percentage, setPercentage] = useState(0);
   const [uploadingFirstPhoto, setUploadingFirstPhoto] = useState(false);
   const [uploadingSecondPhoto, setUploadingSecondPhoto] = useState(false);
   const [uploaded, setUploaded] = useState(0);
   const [isCompareDisabled, setIsCompareDisabled] = useState(true);
   const [compareLoading, setCompareLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [rewardedInterstitialLoaded, setRewardedInterstitialLoaded] = useState(false);
 
-  const analyzingText = 'Analyzing image(s)';
   useEffect(() => {
     (async () => {
       if (Constants.platform.ios) {
@@ -59,24 +58,38 @@ export default function App() {
     })();
   }, []);
 
-  const showAd = async () => {
-    alert(TestIds);
-    console.log('admob ', TestIds, ConfettiCannon);
-    AdMobRewarded.setAdUnitID("ca-app-pub-3940256099942544/5224354917");
-    // AdMobRewarded.setTestDeviceID("EMULATOR");
+  useEffect(() => {
+    const unsubscribeLoaded = rewardedInterstitial.addAdEventListener(
+        RewardedAdEventType.LOADED,
+        () => {
+          setRewardedInterstitialLoaded(true);
+        },
+    );
+    const unsubscribeEarned = rewardedInterstitial.addAdEventListener(
+        RewardedAdEventType.EARNED_REWARD,
+        reward => {
+          console.log('User earned reward of 2 free compares', reward);
+        },
+    );
 
-    await AdMobRewarded.requestAdAsync();
-    await AdMobRewarded.showAdAsync();
-  }
-// function to show ad
-//   const showAd = () => {
-//
-//     if (clickCount > 0 && clickCount % 5 === 0) {
-//       AdMobRewarded.showAdAsync().then(() => {
-//         adShown = true;
-//       });
-//     }
-//   };
+    const unsubscribeClosed = rewardedInterstitial.addAdEventListener(
+        AdEventType.CLOSED,
+        () => {
+          setRewardedInterstitialLoaded(false);
+          rewardedInterstitial.load();
+        }
+    );
+
+    // Start loading the rewarded interstitial ad straight away
+    rewardedInterstitial.load();
+
+    // Unsubscribe from events on unmount
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeEarned();
+      unsubscribeClosed();
+    };
+  }, []);
 
   const takeFirstPhoto = async () => {
     setUploadingFirstPhoto(true);
@@ -100,8 +113,6 @@ export default function App() {
 
 
   const pickFirstImage = async (e) => {
-    console.log('event', e.event);
-
     setUploadingFirstPhoto(true);
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "Images",
@@ -141,7 +152,10 @@ export default function App() {
       ToastAndroid.show('App doesn\'t have permissions to save!', ToastAndroid.SHORT);
       return;
     } else if (val.canAskAgain && !val.granted) {
-      await MediaLibrary.requestPermissionsAsync();
+      const permissionResult = await MediaLibrary.requestPermissionsAsync();
+      if (!permissionResult.granted) {
+        return;
+      }
     }
 
     captureScreen({
@@ -189,9 +203,11 @@ export default function App() {
     }
   };
 
-
   const compareFaces = async () => {
-    showAd();
+    if (clickCount % 3 === 0 && rewardedInterstitialLoaded) {
+      rewardedInterstitial.show();
+    }
+    clickCount += 1;
     setCompareLoading(true);
     if (!firstImageKey || !secondImageKey) {
       setCompareLoading(false);
@@ -232,7 +248,6 @@ export default function App() {
                 setSimilarity(res);
               }
             } else {
-              console.log('inside else', value);
               setSimilarity(0.01);
             }
           })
@@ -240,10 +255,8 @@ export default function App() {
             setCompareLoading(false);
             setShowConfetti(false);
             setSimilarity(0);
-            console.log('error ', e);
           });
     } catch (err) {
-      console.log('error ', e);
       clearSelection();
     }
   };
@@ -259,10 +272,6 @@ export default function App() {
         id === 1 ? setUploadingFirstPhoto(false) : setUploadingSecondPhoto(false);
         return;
       } else {
-        // reset similarity and confetti cuz we're either uploading the image for the first time
-        // setSimilarity(0);
-        // setShowConfetti(false);
-
         const img = await fetchImageFromUri(pickerResult.uri);
         const filename = `demo-${Date.now()}.jpg`;
         if (id === 1) {
@@ -281,49 +290,22 @@ export default function App() {
     }
   };
 
-  const setLoading = (progress) => {
-    const calculated = parseInt((progress.loaded / progress.total) * 100);
-    updatePercentage(calculated); // due to s3 put function scoped
-  };
-
-  const updatePercentage = (number) => {
-    setPercentage(number);
-  };
-
   const fetchImageFromUri = async (uri) => {
     const response = await fetch(uri);
     const blob = await response.blob();
     return blob;
   };
 
-  const copyToClipboard = () => {
-    Clipboard.setString(image);
-    alert("Copied image URL to clipboard");
-  };
-
-  function getWindowDimension(event) {
-    device_width = event.nativeEvent.layout.width,
-    device_height = event.nativeEvent.layout.height
-
-    console.log (device_height);  // Yeah !! good value
-    console.log (device_width);
-  }
-
-  const animate = (similarity) => {
-    Animated.timing(
-        similarity,
-        {
-          toValue: similarity,
-          duration: 2000,
-          easing: Easing.linear
-        }
-    )
-  }
-
   const analyzing = uploadingFirstPhoto || uploadingSecondPhoto || compareLoading;
   return (
       <ImageBackground style={{flex: 1}} source={require('./stylishBackground1.jpg')}>
-        <View style={styles.container} onLayout={(event) => getWindowDimension(event)}>
+        <StatusBar
+            animated={true}
+            backgroundColor="#cacaca"
+            barStyle={'default'}
+            showHideTransition={'none'}
+            hidden={false} />
+        <View style={styles.container}>
           <PaperText variant="displayMedium" style={{marginBottom: 40}}>Welcome! 😄</PaperText>
           <PaperText variant="bodyLarge" style={{marginBottom: 10}}>Please upload/capture photos to compare faces:</PaperText>
 
@@ -369,9 +351,8 @@ export default function App() {
               />
               : null
           }
+          <BannerAd unitId={'ca-app-pub-2736939904467537/6467085864'} size={BannerAdSize.BANNER} />
         </View>
       </ImageBackground>
-
-
   );
 }
