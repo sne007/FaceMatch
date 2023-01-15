@@ -23,7 +23,7 @@ AWS.config.update(
       }
     });
 
-const rewardedInterstitial = RewardedInterstitialAd.createForAdRequest('ca-app-pub-2736939904467537/6624279795');
+const rewardedInterstitial = RewardedInterstitialAd.createForAdRequest('ca-app-pub-4840548447055113/5525209712');
 
 export default function App() {
   const s3 = new AWS.S3({apiVersion: '2006-03-01'});
@@ -204,7 +204,7 @@ export default function App() {
   };
 
   const compareFaces = async () => {
-    if (clickCount % 3 === 0 && rewardedInterstitialLoaded) {
+    if (clickCount > 2 && rewardedInterstitialLoaded) {
       rewardedInterstitial.show();
     }
     clickCount += 1;
@@ -351,7 +351,8 @@ export default function App() {
               />
               : null
           }
-          <BannerAd unitId={'ca-app-pub-2736939904467537/6467085864'} size={BannerAdSize.BANNER} />
+          <BannerAd unitId={'ca-app-pub-4840548447055113/5214465949'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
+          <BannerAd unitId={'ca-app-pub-4840548447055113/4205841884'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
         </View>
       </ImageBackground>
   );
