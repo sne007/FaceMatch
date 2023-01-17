@@ -1,19 +1,23 @@
 import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button, Text as PaperText, IconButton } from "react-native-paper"
 import AWS from 'aws-sdk';
-import { Image, View, ToastAndroid, ImageBackground, Animated, Easing, StatusBar } from "react-native";
+import { Image, View, ToastAndroid, ImageBackground, StatusBar, Alert, Linking, BackHandler } from "react-native";
 import { styles } from './Styles';
 import * as Progress from 'react-native-progress';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { captureScreen } from "react-native-view-shot";
 import * as MediaLibrary from 'expo-media-library';
 import { BannerAd, BannerAdSize, AdEventType, RewardedInterstitialAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
+import * as Device from 'expo-device';
+import VersionCheck from 'react-native-version-check';
 
 let count = 0;
 let clickCount = 1;
 const bucketName = 'face-compare-007';
+const testMode = false;
+
 AWS.config.update(
     {
       region: 'us-east-1',
@@ -24,6 +28,7 @@ AWS.config.update(
     });
 
 const rewardedInterstitial = RewardedInterstitialAd.createForAdRequest('ca-app-pub-4840548447055113/5525209712');
+const deviceIdentifier = `${Device.deviceName}-${Device.brand}-${Device.modelName}-${Device.osVersion}`;
 
 export default function App() {
   const s3 = new AWS.S3({apiVersion: '2006-03-01'});
@@ -41,6 +46,27 @@ export default function App() {
   const [compareLoading, setCompareLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [rewardedInterstitialLoaded, setRewardedInterstitialLoaded] = useState(false);
+  const [rewardEarned, setRewardEarned] = useState(false);
+  const [canCompare, setCanCompare] = useState(false);
+
+  // useEffect(() => {
+  //   async function fetchData() {
+  //     try {
+  //       const result = await VersionCheck.needUpdate();
+  //       if (result && result.isNeeded) {
+  //         Alert.alert('Please update the app to continue', 'Press OK to go to play store', [
+  //           {
+  //             text: 'OK', onPress: () => {
+  //               Linking.openURL(result.storeUrl)
+  //             }},
+  //         ]);
+  //       }
+  //     } catch (e) {
+  //       console.error(e);
+  //     }
+  //   }
+  //   fetchData();
+  // }, []);
 
   useEffect(() => {
     (async () => {
@@ -68,7 +94,7 @@ export default function App() {
     const unsubscribeEarned = rewardedInterstitial.addAdEventListener(
         RewardedAdEventType.EARNED_REWARD,
         reward => {
-          console.log('User earned reward of 2 free compares', reward);
+          setRewardEarned(true);
         },
     );
 
@@ -76,6 +102,8 @@ export default function App() {
         AdEventType.CLOSED,
         () => {
           setRewardedInterstitialLoaded(false);
+          setCanCompare(rewardEarned);
+          setRewardEarned(false);
           rewardedInterstitial.load();
         }
     );
@@ -89,7 +117,7 @@ export default function App() {
       unsubscribeEarned();
       unsubscribeClosed();
     };
-  }, []);
+  }, [rewardEarned, canCompare]);
 
   const takeFirstPhoto = async () => {
     setUploadingFirstPhoto(true);
@@ -144,12 +172,18 @@ export default function App() {
     setIsCompareDisabled(true)
     setCompareLoading(false);
     setShowConfetti(false);
+    setCanCompare(false);
+    setRewardEarned(false);
   };
 
   const takeScreenshot = async () => {
     const val =  await MediaLibrary.getPermissionsAsync();
     if (!val.canAskAgain && !val.granted) {
-      ToastAndroid.show('App doesn\'t have permissions to save!', ToastAndroid.SHORT);
+      if (Constants.platform.ios) {
+        alert('App doesn\'t have permissions to save!');
+      } else {
+        ToastAndroid.show('App doesn\'t have permissions to save!', ToastAndroid.SHORT);
+      }
       return;
     } else if (val.canAskAgain && !val.granted) {
       const permissionResult = await MediaLibrary.requestPermissionsAsync();
@@ -165,12 +199,22 @@ export default function App() {
         .then(
             uri => {
               MediaLibrary.createAssetAsync(uri);
-              ToastAndroid.show('Screenshot saved to photos!', ToastAndroid.SHORT);
+              if (Constants.platform.android) {
+                ToastAndroid.show('Screenshot saved to photos!', ToastAndroid.SHORT);
+              } else {
+                setTimeout(() => {
+                  alert('Screenshot saved to photos!');
+                }, 500);
+              }
             },
             error => console.error("Oops, snapshot failed", error)
         )
         .catch((e) => {
-          ToastAndroid.show('Failed to capture screen!', ToastAndroid.SHORT);
+          if (Constants.platform.ios) {
+            alert('Failed to capture screen!');
+          } else {
+            ToastAndroid.show('Failed to capture screen!', ToastAndroid.SHORT);
+          }
         })
   }
 
@@ -193,9 +237,9 @@ export default function App() {
               setIsCompareDisabled(false);
             }
           })
-          .catch(() => {
+          .catch((e) => {
             clearSelection();
-            console.error(`Error upload failed, please try again`);
+            console.error(`Error upload failed, please try again`, e);
             id === 1 ? setUploadingFirstPhoto(false) : setUploadingSecondPhoto(false);
           });
     } catch (err) {
@@ -203,10 +247,21 @@ export default function App() {
     }
   };
 
-  const compareFaces = async () => {
-    if (clickCount > 2 && rewardedInterstitialLoaded) {
-      rewardedInterstitial.show();
+  useEffect(() => {
+    if (canCompare) {
+      compareFaces();
     }
+  }, [canCompare]);
+
+  const showInterstitialAd = async () => {
+    if (rewardedInterstitialLoaded) {
+      await rewardedInterstitial.show();
+    } else {
+      setCanCompare(true);
+    }
+  }
+
+  const compareFaces = async () => {
     clickCount += 1;
     setCompareLoading(true);
     if (!firstImageKey || !secondImageKey) {
@@ -232,6 +287,9 @@ export default function App() {
       },
     };
 
+    if (testMode) {
+      return;
+    }
     // Call compareFaces API
     try {
       const data = await rekognition.compareFaces(params).promise()
@@ -273,7 +331,7 @@ export default function App() {
         return;
       } else {
         const img = await fetchImageFromUri(pickerResult.uri);
-        const filename = `demo-${Date.now()}.jpg`;
+        const filename = `${deviceIdentifier}-${Date.now()}.jpg`;
         if (id === 1) {
           setImage1(pickerResult.uri);
           setFirstImageKey(filename);
@@ -306,8 +364,7 @@ export default function App() {
             showHideTransition={'none'}
             hidden={false} />
         <View style={styles.container}>
-          <PaperText variant="displayMedium" style={{marginBottom: 40}}>Welcome! 😄</PaperText>
-          <PaperText variant="bodyLarge" style={{marginBottom: 10}}>Please upload/capture photos to compare faces:</PaperText>
+          <PaperText variant="bodyLarge" style={{marginBottom: 10, marginTop: 1}}>Welcome! 😄 Please upload/capture photos to compare faces:</PaperText>
 
           <View style={styles.cardContainer}>
             <View>
@@ -336,7 +393,7 @@ export default function App() {
           <View style={{padding: 20}}>
             <View style={{justifyContent: 'center', flexDirection: 'row'}}>
               <Button style={{marginRight: 15}} icon="close-circle" onPress={clearSelection} mode="outlined"> Clear </Button>
-              <Button onPress={compareFaces} mode={'contained'} color={'#6081f7'} icon={"compare"} disabled={analyzing || isCompareDisabled} loading={analyzing}>
+              <Button onPress={showInterstitialAd} mode={'contained'} color={'#6081f7'} icon={"compare"} disabled={analyzing || isCompareDisabled} loading={analyzing}>
                 {compareLoading ? 'Analyzing Image(s)' : (analyzing ? 'Scanning Image(s)' : 'Compare!')}
               </Button>
             </View>
@@ -351,9 +408,10 @@ export default function App() {
               />
               : null
           }
-          <BannerAd unitId={'ca-app-pub-4840548447055113/5214465949'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
-          <BannerAd unitId={'ca-app-pub-4840548447055113/4205841884'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
         </View>
+        <BannerAd unitId={'ca-app-pub-4840548447055113/3906868104'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
+        <BannerAd unitId={'ca-app-pub-4840548447055113/5214465949'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
+        <BannerAd unitId={'ca-app-pub-4840548447055113/4205841884'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
       </ImageBackground>
   );
 }
