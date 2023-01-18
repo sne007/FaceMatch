@@ -3,7 +3,7 @@ import { AppRegistry } from 'react-native';
 import { MD3LightTheme as DefaultTheme, Provider as PaperProvider } from 'react-native-paper';
 import App from './App';
 
-const appName = 'Face Compare';
+const appName = 'FaceMatch';
 
 const theme = {
     ...DefaultTheme,

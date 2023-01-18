@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FaceMatch",
-    "slug": "FaceMatch",
+    "name": "IdentiFace",
+    "slug": "IdentiFace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -28,21 +28,30 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sne007.FaceMatchV1"
+      "bundleIdentifier": "com.sne007.IdentiFace",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
+        "NSPhotoLibraryAddUsageDescription": "Allow Face Match to save screenshots."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.sne007.FaceMatchV1"
+      "package": "com.sne007.IdentiFace",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_MEDIA_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "90152b90-4d17-4878-954f-7ff5533bed03"
+        "projectId": "d711d9f5-12ff-4329-9008-f70ac7aff0b1"
       }
     }
   },
