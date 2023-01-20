@@ -53,13 +53,13 @@
 		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your camera</string>
+	<string>$(PRODUCT_NAME) requires access to the camera in order to allow users to take pictures of faces, which can then be compared to determine similarity percentage.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your microphone</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Allow Face Match to save screenshots.</string>
+	<string>$(PRODUCT_NAME) requires access to the photo library in order to allow users to save the screenshots of the comparison results.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your photos</string>
+	<string>$(PRODUCT_NAME) requires access to the photo library in order to allow users to select and compare existing images from their gallery.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>SplashScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
