@@ -27,7 +27,7 @@ AWS.config.update(
       }
     });
 
-const rewardedInterstitial = RewardedInterstitialAd.createForAdRequest('ca-app-pub-4840548447055113/5525209712');
+const rewardedInterstitial = RewardedInterstitialAd.createForAdRequest('ca-app-pub-2736939904467537/1204509108');
 const deviceIdentifier = `${Device.deviceName}-${Device.brand}-${Device.modelName}-${Device.osVersion}`;
 
 export default function App() {
@@ -410,9 +410,9 @@ export default function App() {
               : null
           }
         </View>
-        <BannerAd unitId={'ca-app-pub-4840548447055113/3906868104'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
-        <BannerAd unitId={'ca-app-pub-4840548447055113/5214465949'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
-        <BannerAd unitId={'ca-app-pub-4840548447055113/4205841884'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
+        <BannerAd unitId={'ca-app-pub-2736939904467537/3713739488'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
+        <BannerAd unitId={'ca-app-pub-2736939904467537/3858592601'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
+        <BannerAd unitId={'ca-app-pub-2736939904467537/1232429267'} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
       </ImageBackground>
   );
 }
