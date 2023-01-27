@@ -313,6 +313,7 @@ export default function App() {
             setCompareLoading(false);
             setShowConfetti(false);
             setSimilarity(0);
+            alert('Error comparing! This could be due to images having animated faces or not containing faces at all. Please try again');
           });
     } catch (err) {
       clearSelection();
@@ -398,7 +399,7 @@ export default function App() {
               </Button>
             </View>
             <Progress.Bar  animationConfig={{ duration: 2000 }} animationType={'timing'} color={'#6081f7'} progress={similarity / 100} width={null} height={15} borderRadius={8} style={{marginTop: 50}} />
-            <PaperText variant="titleMedium" style={{marginBottom: 5, justifyContent: 'center'}}> {`Match percentage: ${similarity.toFixed(2)}`}</PaperText>
+            <PaperText variant="titleMedium" style={{marginBottom: 5, justifyContent: 'center'}}> {`Match percentage: ${similarity > 0 ? similarity.toFixed(2) : '-'}`}</PaperText>
             <Button style={{marginTop: 25}} onPress={takeScreenshot} mode={'outlined'} icon={"download"}> Take Screenshot </Button>
           </View>
           {showConfetti ?
